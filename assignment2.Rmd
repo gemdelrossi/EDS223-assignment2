@@ -1,0 +1,133 @@
+---
+title: 'EDS 223: assignment 2'
+author: "Ruth Oliver"
+date: "2022-10-10"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## introduction
+The following exercises are modified from [Chapters 3](https://geocompr.robinlovelace.net/attr.html), [4](https://geocompr.robinlovelace.net/spatial-operations.html), [5](https://geocompr.robinlovelace.net/geometry-operations.html) of Geocomputation with R by Rovin Lovelace. Each question lists the total number of points. The breakdown of points can be found at the end of each instruction in parentheses. A general grading rubric can be found on the [course website](https://ryoliver.github.io/EDS_223_spatial_analysis/assignments.html).
+
+Please update "author" to list your first and last names and any collaborators (e.g. Ruth Oliver, Friend1, Friend2).
+
+**Due by midnight on Saturday 2022-10-22**
+
+## prerequisites
+
+```{r load, include=TRUE, message=FALSE, warning=FALSE}
+# add required packages here
+```
+
+## question 1
+##### 5 points
+
+Find the states that:(2.5)  
+-   belong to the West region  
+-   have an area below 250,000 square kilometers  
+-   and greater than 5,000,000 residents in 2015
+
+```{r include=TRUE}
+
+```
+
+What was the total population of the US in 2015? (2.5)
+
+```{r include=TRUE}
+
+
+```
+
+## question 2
+##### 5 points
+
+Create a new variable named "us_states_stats" by adding variables from "us_states_df" to "us_states". (3)
+
+-   Which function did you use and why? (0.5)
+-   Which variable is the key variable in both datasets? (0.5)
+-   What is the class of the new object? (0.5)
+-   Why does us_states_df have 2 more rows than us_states? (0.5)
+
+```{r include=TRUE}
+
+```
+
+## question 3
+##### 10 points
+Make a map of the percent change in population density between 2010 and 2015 in each state. Map should include a legend that is easily readable. (7)
+
+```{r include=TRUE}
+
+```
+
+In how many states did population density decrease? (3)
+
+```{r include=TRUE}
+
+```
+
+## question 4
+##### 10 points
+
+How many of New Zealand's high points are in the Canterbury region? (5)
+
+```{r include=TRUE}
+
+```
+
+Which region has the second highest number of "nz_height" points? And how many does it have? (5)
+
+```{r include=TRUE}
+
+```
+
+## question 5
+##### 15 points
+Create a new object representing all of the states the geographically intersect with Colorado.(5)   
+Hint: use the "united_states" dataset. The most concise way to do this is with the subsetting method "[".  
+Make a map of the resulting states. (2.5)
+
+```{r include=TRUE}
+
+```
+
+Create another object representing all the objects that touch (have a shared boundary with) Colorado and plot the result.(5)  
+Hint: remember you can use the argument op = st_intersects and other spatial relations during spatial subsetting operations in base R).  
+Make a map of the resulting states. (2.5)
+
+
+```{r include=TRUE}
+
+```
+
+## question 6
+##### 10 points
+Generate simplified versions of the "nz" dataset. Experiment with different values of keep (ranging from 0.5 to 0.00005) for **ms_simplify()** and dTolerance (from 100 to 100,000) **st_simplify()**. (5)
+
+Map the results to show how the simplification changes as you change values.(5)
+
+```{r include=TRUE}
+
+```
+
+
+## question 7
+##### 10 points
+How many points from the "nz_height" dataset are within 100km of the Canterbury region?
+
+```{r include=TRUE}
+
+```
+
+## question 8
+##### 15 points
+
+Find the geographic centroid of the country of New Zealand. How far is it from the geographic centroid of Canterbury?
+
+```{r include=TRUE}
+
+```
+
