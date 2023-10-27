@@ -51,7 +51,7 @@ We will be working observations of birds from 2021 onward.
 ### Investigate the legacy of redlining in current environmental (in)justice
 
 Load relevant packages.
-```{r }
+```{r packages}
 # set up WD 
 
 rm(list = ls())
@@ -66,35 +66,32 @@ lapply(dir, function(x) dir.create(x, showWarnings = F))
 
 if (!require("pacman")) install.packages("pacman")
 pacman::p_load(
-  tidyverse, tidylog, ggspatial, viridis, # geosphere, (not sure if needed) 
-  sf, terra, spData, spDataLarge, ggplot2, tmap) 
+  tidyverse, tidylog, ggspatial, viridis, RColorBrewer,
+  sf, spData, spDataLarge, ggplot2, tmap) 
 
 ```
 
 Read in EJScreen data and filter to Los Angeles County
 (5 points)
-```{r }
+```{r download}
 
 ejscreen <- st_read(paste0(dir$data,"/EJSCREEN_2023_BG_StatePct_with_AS_CNMI_GU_VI.gdb"))
-
-# change CRS to work with lat/long coords easier for any cropping 
-ejscreen <-st_transform(ejscreen, "EPSG:4326")
-
-st_crs(ejscreen)
 
 #filter to LA county
 LA_county <- ejscreen %>% 
   filter(STATE_NAME == "California",
-         CNTY_NAME == "Los Angeles County")
+         CNTY_NAME == "Los Angeles County") %>% 
+  st_transform("EPSG:4326") # change CRS to work with lat/long coords easier for any cropping
 
 st_crs(LA_county)
 st_bbox(LA_county) # woo
+
 
 ```
 
 Make a map of wastewater discharge by census block groups. Indicate which census block groups are above the 95th percentile of national values for wastewater discharge by adding a centroid.
 (10 points)
-```{r }
+```{r wastewater}
 
 # var name of wastewater discharge is PWDIS
 
@@ -122,24 +119,23 @@ ggplot(LA_county) +
   geom_sf(fill = ifelse(is.na(LA_county$PWDIS), "lightgrey", NA),
           col = NA) + # fills in NA values
   geom_sf(data = top_percentile, fill = "green", col = "darkgreen", 
-          alpha = 0.5, cex = 0.75, pch = 25)+
+          alpha = 0.6, cex = 0.75, pch = 25)+
   geom_sf(data= LA_outline, fill = NA, lwd = 0.8, col = "black")+
-  coord_sf(ylim =c(33.72, 34.823)) + # cropped out Catalina islands +
+  coord_sf(ylim =c(33.72, 34.823)) + # cropped out Catalina islands 
   scale_fill_viridis_c(option = "A", direction = -1, aesthetics = c("fill"))+
-  labs(x = "",  y = "", title = "Wastewater Discharge (log) with 95% of _____", 
-       fill = c("Log(Wastewater Discharge)", "95th percentile of Wastewater Discharge"))+
+  labs(x = "",  y = "", title = "Wastewater Discharge (log) with communities in 95th percentile", 
+       fill = c("Log(Wastewater Discharge)"))+
   annotation_scale()+
   annotation_north_arrow(location = "br", style = north_arrow_fancy_orienteering())+
   theme_bw()
 
 
-# For office hours: ask how to add additional legend with the dots representing the 95th percentile
-
 ```
+\br
 Find the percent of census block groups that have:  
 - less than 5% of the population is considered low income
 (5 points)
-```{r }
+```{r wealthy}
 
 # variable for percentile that is low income : P_LOWINCPCT
 
@@ -151,9 +147,9 @@ wealthy <- LA_county %>%
 
 # To get the percentage, we need to calculate: 
 
-new <- (wealthy[2,2]/nrow(st_drop_geometry(LA_county))*100)
+pct_wealthy <- (wealthy[2,2]/nrow(st_drop_geometry(LA_county))*100)
 
-new
+pct_wealthy
 
 ```
 
@@ -166,9 +162,9 @@ Find the percent of census block groups that are:
 - above the 80th percentile for Superfund proximity
 (10 points)
 
-```{r }
+```{r pm2.5_sf}
 
-test <- LA_county %>% 
+pm25_sf <- LA_county %>% 
   filter(P_PM25 > 80, 
          P_PNPL > 80) %>% 
   group_by(ST_ABBREV) %>% 
@@ -177,9 +173,9 @@ test <- LA_county %>%
 
 # to find the percentage, we need to calculate: 
 
-pcnt_pm_sf <-(test[1,2]/nrow(st_drop_geometry(LA_county)))*100
+pct_pm25_sf <-(pm25_sf[1,2]/nrow(st_drop_geometry(LA_county)))*100
 
-pcnt_pm_sf
+pct_pm25_sf
 
 ```
 The percentage of CBGs within LA county that are in the top 80 percent of the PM2.5 exposure and top 80 percent of proximity to a Superfund site is approximately 17.36%. 
@@ -187,7 +183,8 @@ The percentage of CBGs within LA county that are in the top 80 percent of the PM
 \br 
 
 Import redlining information for Los Angeles.
-```{r }
+```{r redlining}
+
 LA_redlining <- st_read("https://dsl.richmond.edu/panorama/redlining/static/downloads/geojson/CALosAngeles1939.geojson") %>%
   st_make_valid()
 
@@ -195,17 +192,46 @@ LA_redlining <- st_read("https://dsl.richmond.edu/panorama/redlining/static/down
 
 Make a map of historical redlining boundaries, colored by HOLC grade.
 (5 points)
-```{r }
+```{r holc map}
 
+# add colors for scale 
+colors <- brewer.pal(4, "YlOrRd")
+gray_palette <- colorRampPalette(c("white", "black"))(5)
+
+# map time 
+
+ggplot() + 
+  geom_sf(data = LA_county, fill = gray_palette[4], col = "lightgrey")+
+  geom_sf(data = LA_redlining, aes(fill = holc_grade, col = holc_grade)) +
+  scale_color_discrete(type = colors, aesthetics = c("fill", "col")) +
+  coord_sf(ylim =c(33.72, 34.823)) +  # cropped out Catalina islands
+  labs(x="", y = "", 
+       title = "HOLC Grades across LA County CBGs", 
+       fill = "HOLC Grade", col = "HOLC Grade")+
+  annotation_scale()+
+  annotation_north_arrow(location = "br", style = north_arrow_fancy_orienteering())+
+  theme_bw()
 
 ```
 
 Find the number of census block groups that fall within areas with HOLC grades
 hint: make sure the CRS match
 (15 points)
-```{r eval=FALSE}
+```{r redlining2, eval=FALSE}
+
+st_crs(LA_redlining)
+
+st_crs(LA_county) # they match since I adjusted it in the beginning 
+
+cbgs_holc <- LA_redlining %>% 
+  st_filter(y = LA_county, .predicate = st_intersects)
+
+nrow(st_drop_geometry(cbgs_holc))
 
 ```
+
+There are 416 CBGs that fall within the HOLC grades. 
+\br
 
 Summarize current conditions based on EJScreen data within historical redlining categories using the mean of the following variables:  
 -% low income.  
@@ -215,21 +241,89 @@ Summarize current conditions based on EJScreen data within historical redlining 
 (20 points)
 ```{r }
 
+# want to join the Redlining dataset with the LA_county dataset 
+
+holc_ej <- st_join(LA_redlining, LA_county, left = TRUE)
+
+holc_ej_stats <- holc_ej %>% 
+  group_by(holc_grade) %>% 
+  summarise(mean_p_lowinc = mean(P_LOWINCPCT, na.rm = TRUE), 
+            mean_p_pm25 = mean(P_PM25, na.rm = TRUE), 
+            mean_p_llife = mean(P_LIFEEXPPCT, na.rm = TRUE), 
+            mean_p_cancer = mean(P_CANCER, na.rm = TRUE)) %>% 
+  st_drop_geometry()
+
+holc_ej_stats
 
 ```
 
 Please write 2-3 sentences reflecting on these results.
 (5 points)
 
+We can see from these results that HOLC grade assigned to CBGs does associate with higher environmental injustices. For example, the mean percentage low income within census blocks increases as we go down the HOLC grade, as well as exposure to PM 2.5. It seems like the lower the HOLC grade (which most likely corresponds to the % POC as well), the more environmental risks and harms are present which confirms the narrative of redlining.   
+
+\br
+
 ### Investigate the legacy of redlining in biodiversity observations
 
 For bird observations from 2022 that fall within neighborhoods with HOLC grads, find the percent of observations within each redlining categories and plot results.
 hint: make sure that the bird observations have the same CRS as redlining data.
 (20 points)
-````{r }
+```{r }
+
+# download bird data
+
+birds <- st_read(paste0(dir$data, "/gbif-birds-LA"))
+
+#check matching CRSs
+
+if (st_crs(birds) == st_crs(LA_redlining)){
+  print("The CRS's match")
+} else {
+  print("The CRS's do not match, you need to transform 1 to match the other")
+}
+
+# filter to those within the year 2022 and see where they match 
+
+birds_2022 <- birds %>% 
+  filter(year == 2022)
+
+ggplot(LA_redlining) +
+  geom_sf() +
+  geom_sf(data = birds_2022, col = "red", cex = 0.5)
+
+# Crop to only include birds within HOLC CBGs by count
+
+LA_redlining$bird_count <- lengths(st_intersects(LA_redlining, birds_2022))
+
+# create summary statistic where each HOLC has percentage of total birds observed in 2022 
+
+birds_by_holc <- LA_redlining %>%  
+  group_by(holc_grade) %>% 
+  summarise(holc_birds_pct = (sum(bird_count, na.rm=TRUE)/nrow(birds_2022))*100) %>% 
+  st_drop_geometry()
+ 
+birds_by_holc
+
+# visualization
+
+ggplot(birds_by_holc) +
+  geom_col(aes(x = holc_grade, y = holc_birds_pct, fill = holc_grade, col = holc_grade)) +
+  scale_color_discrete(type = colors, aesthetics = c("fill", "col")) +
+  labs(x = "Home Owners' Loan Corporation Grade", 
+       y = "Percentage of birds observed in 2022 within each grade", 
+       title = "Percentage of birds observed within each HOLC grade in 2022", 
+       fill = "HOLC Ratings", col = "HOLC Ratings") +
+  theme_bw()
 
 
 ```
 
 Please write 2-3 sentences reflecting on these results. Are they surprising? If so, why? What are some potential implications?
 (5 points)
+
+
+My results suggest that lower HOLC grades actually have more observed birds, which I found surprising. I would have expected to see low bird densities in neighborhoods that receive lower grades (i.e. more discriminated against) due to environmental justice factors such as poorer/minority neighborhoods typically having less trees and green space. However, this shows the opposite! I wonder if it's due to the type of bird we're observing in the data? Like a flock of seagulls or other "common" city birds are prevalent in these areas more so than others (e.g. Anna's hummingbird, which is by my apartment all the time)? 
+
+The implications of this suggest that there might be greater benefits reforesting/providing more green space (or in the case of LA, xero-scaping?) in these neighborhoods, given there are higher densities of birds. It's a win-win solution for the birds and people who also could benefit from more public amenities.   
+
