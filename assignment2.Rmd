@@ -1,6 +1,6 @@
 ---
 title: 'EDS 223: assignment 2'
-author: "{student name and collaborators}"
+author: "Gemma Del Rossi"
 output: html_document
 date: "2023-10-17"
 ---
@@ -49,8 +49,25 @@ We will be working observations of birds from 2021 onward.
 ## Assignment
 
 ### Investigate the legacy of redlining in current environmental (in)justice
+
 Load relevant packages.
 ```{r }
+# set up WD 
+
+rm(list = ls())
+getwd()
+
+dir <- list()
+dir$root <- paste0(dirname(getwd()),"/EDS223-assignment2")
+dir$data <- paste0(dir$root,"/data") # if needed
+lapply(dir, function(x) dir.create(x, showWarnings = F)) 
+
+# download necessary packages into library 
+
+if (!require("pacman")) install.packages("pacman")
+pacman::p_load(
+  tidyverse, tidylog, ggspatial, viridis, # geosphere, (not sure if needed) 
+  sf, terra, spData, spDataLarge, ggplot2, tmap) 
 
 ```
 
@@ -58,12 +75,65 @@ Read in EJScreen data and filter to Los Angeles County
 (5 points)
 ```{r }
 
+ejscreen <- st_read(paste0(dir$data,"/EJSCREEN_2023_BG_StatePct_with_AS_CNMI_GU_VI.gdb"))
+
+# change CRS to work with lat/long coords easier for any cropping 
+ejscreen <-st_transform(ejscreen, "EPSG:4326")
+
+st_crs(ejscreen)
+
+#filter to LA county
+LA_county <- ejscreen %>% 
+  filter(STATE_NAME == "California",
+         CNTY_NAME == "Los Angeles County")
+
+st_crs(LA_county)
+st_bbox(LA_county) # woo
+
 ```
 
 Make a map of wastewater discharge by census block groups. Indicate which census block groups are above the 95th percentile of national values for wastewater discharge by adding a centroid.
 (10 points)
 ```{r }
 
+# var name of wastewater discharge is PWDIS
+
+summary(LA_county$PWDIS)
+hist(LA_county$PWDIS)
+hist(log(LA_county$PWDIS)) # logging the variable better for visualizing
+
+# extract centroids of CBGs who are above the 95th percentile for waste water discharge 
+# Percentile var is P_PWDIS
+
+top_percentile <- LA_county %>% 
+  filter(P_PWDIS > 95) %>% 
+  st_centroid()
+
+  hist(top_percentile$P_PWDIS) # yep
+
+# extract LA_county outline: 
+  
+  LA_outline <- st_union(LA_county)
+  
+# map time 
+
+ggplot(LA_county) +
+  geom_sf(aes(fill =log(PWDIS)),  col = NA) +
+  geom_sf(fill = ifelse(is.na(LA_county$PWDIS), "lightgrey", NA),
+          col = NA) + # fills in NA values
+  geom_sf(data = top_percentile, fill = "green", col = "darkgreen", 
+          alpha = 0.5, cex = 0.75, pch = 25)+
+  geom_sf(data= LA_outline, fill = NA, lwd = 0.8, col = "black")+
+  coord_sf(ylim =c(33.72, 34.823)) + # cropped out Catalina islands +
+  scale_fill_viridis_c(option = "A", direction = -1, aesthetics = c("fill"))+
+  labs(x = "",  y = "", title = "Wastewater Discharge (log) with 95% of _____", 
+       fill = c("Log(Wastewater Discharge)", "95th percentile of Wastewater Discharge"))+
+  annotation_scale()+
+  annotation_north_arrow(location = "br", style = north_arrow_fancy_orienteering())+
+  theme_bw()
+
+
+# For office hours: ask how to add additional legend with the dots representing the 95th percentile
 
 ```
 Find the percent of census block groups that have:  
@@ -71,17 +141,50 @@ Find the percent of census block groups that have:
 (5 points)
 ```{r }
 
+# variable for percentile that is low income : P_LOWINCPCT
+
+wealthy <- LA_county %>% 
+  mutate(wealthy_cbgs = ifelse(LA_county$P_LOWINCPCT < 5, 1, 0)) %>% 
+  group_by(wealthy_cbgs) %>% 
+  summarise(count = n()) %>% 
+  st_drop_geometry()
+
+# To get the percentage, we need to calculate: 
+
+new <- (wealthy[2,2]/nrow(st_drop_geometry(LA_county))*100)
+
+new
 
 ```
+
+Of the CBGs that fall within LA county, only approximately 3.2% of them have less than 5% of the population being considered low income. 
+
+\br
 
 Find the percent of census block groups that are:    
 - above the 80th percentile for Particulate Matter 2.5 AND  
 - above the 80th percentile for Superfund proximity
 (10 points)
+
 ```{r }
 
+test <- LA_county %>% 
+  filter(P_PM25 > 80, 
+         P_PNPL > 80) %>% 
+  group_by(ST_ABBREV) %>% 
+  summarise(count = n()) %>% 
+  st_drop_geometry()
+
+# to find the percentage, we need to calculate: 
+
+pcnt_pm_sf <-(test[1,2]/nrow(st_drop_geometry(LA_county)))*100
+
+pcnt_pm_sf
 
 ```
+The percentage of CBGs within LA county that are in the top 80 percent of the PM2.5 exposure and top 80 percent of proximity to a Superfund site is approximately 17.36%. 
+
+\br 
 
 Import redlining information for Los Angeles.
 ```{r }
